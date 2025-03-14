@@ -35,21 +35,15 @@
                       <EmptySpace min="221" pref="221" max="-2" attributes="0"/>
                       <Component id="lbl_apellidos" min="-2" pref="100" max="-2" attributes="0"/>
                   </Group>
-                  <Group type="102" alignment="0" attributes="0">
-                      <EmptySpace min="-2" pref="23" max="-2" attributes="0"/>
+                  <Group type="102" attributes="0">
+                      <EmptySpace min="-2" pref="40" max="-2" attributes="0"/>
+                      <Component id="btn_finalizar_seción" min="-2" pref="88" max="-2" attributes="0"/>
+                      <EmptySpace min="-2" pref="93" max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="0" attributes="0">
-                          <Component id="btn_registro_Usuaio" min="-2" pref="260" max="-2" attributes="0"/>
-                          <Group type="102" attributes="0">
-                              <EmptySpace min="-2" pref="17" max="-2" attributes="0"/>
-                              <Component id="btn_finalizar_seción" min="-2" pref="88" max="-2" attributes="0"/>
-                              <EmptySpace min="-2" pref="93" max="-2" attributes="0"/>
-                              <Group type="103" groupAlignment="0" attributes="0">
-                                  <Component id="txt_cedula" min="-2" pref="418" max="-2" attributes="0"/>
-                                  <Component id="jLabel1" min="-2" max="-2" attributes="0"/>
-                                  <Component id="lbl_nombres" alignment="0" min="-2" pref="96" max="-2" attributes="0"/>
-                                  <Component id="lbl_titulo" min="-2" max="-2" attributes="0"/>
-                              </Group>
-                          </Group>
+                          <Component id="txt_cedula" min="-2" pref="418" max="-2" attributes="0"/>
+                          <Component id="jLabel1" min="-2" max="-2" attributes="0"/>
+                          <Component id="lbl_nombres" alignment="0" min="-2" pref="96" max="-2" attributes="0"/>
+                          <Component id="lbl_titulo" min="-2" max="-2" attributes="0"/>
                       </Group>
                   </Group>
                   <Group type="102" alignment="0" attributes="0">
@@ -92,15 +86,18 @@
                       <EmptySpace min="-2" pref="450" max="-2" attributes="0"/>
                       <Component id="txt_clave_comprobacion" min="-2" pref="200" max="-2" attributes="0"/>
                   </Group>
+                  <Group type="102" alignment="1" attributes="0">
+                      <EmptySpace max="-2" attributes="0"/>
+                      <Component id="btn_registro_Usuaio" min="-2" pref="260" max="-2" attributes="0"/>
+                      <EmptySpace min="-2" pref="231" max="-2" attributes="0"/>
+                  </Group>
               </Group>
-              <EmptySpace min="208" pref="199" max="32767" attributes="0"/>
+              <EmptySpace min="208" pref="205" max="32767" attributes="0"/>
           </Group>
-          <Group type="102" alignment="0" attributes="0">
-              <EmptySpace min="-2" pref="337" max="-2" attributes="0"/>
-              <Component id="btn_actualizar" min="-2" pref="215" max="-2" attributes="0"/>
-              <EmptySpace max="32767" attributes="0"/>
-              <Component id="btn_lista_Usuarios" min="-2" pref="208" max="-2" attributes="0"/>
-              <EmptySpace min="-2" pref="36" max="-2" attributes="0"/>
+          <Group type="102" alignment="1" attributes="0">
+              <EmptySpace min="0" pref="0" max="32767" attributes="0"/>
+              <Component id="btn_actualizar" min="-2" pref="264" max="-2" attributes="0"/>
+              <EmptySpace min="-2" pref="140" max="-2" attributes="0"/>
           </Group>
       </Group>
     </DimensionLayout>
@@ -162,7 +159,6 @@
               </Group>
               <EmptySpace type="unrelated" max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
-                  <Component id="btn_lista_Usuarios" alignment="3" min="-2" pref="50" max="-2" attributes="0"/>
                   <Component id="btn_actualizar" alignment="3" min="-2" pref="50" max="-2" attributes="0"/>
                   <Component id="btn_registro_Usuaio" alignment="3" min="-2" pref="50" max="-2" attributes="0"/>
               </Group>
@@ -423,11 +419,6 @@
     <Component class="javax.swing.JTextField" name="txt_cedula">
       <Properties>
         <Property name="text" type="java.lang.String" value="e. g. 0102030405"/>
-        <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
-          <Border info="org.netbeans.modules.form.compat2.border.LineBorderInfo">
-            <LineBorder/>
-          </Border>
-        </Property>
       </Properties>
       <Events>
         <EventHandler event="focusGained" listener="java.awt.event.FocusListener" parameters="java.awt.event.FocusEvent" handler="txt_cedulaFocusGained"/>
@@ -453,15 +444,6 @@
       <AuxValues>
         <AuxValue name="JavaCodeGenerator_VariableModifier" type="java.lang.Integer" value="1"/>
       </AuxValues>
-    </Component>
-    <Component class="javax.swing.JButton" name="btn_lista_Usuarios">
-      <Properties>
-        <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
-          <Font name="Segoe UI" size="18" style="1"/>
-        </Property>
-        <Property name="text" type="java.lang.String" value="VER USUARIOS"/>
-        <Property name="opaque" type="boolean" value="true"/>
-      </Properties>
     </Component>
     <Component class="javax.swing.JLabel" name="lbl_titulo">
       <Properties>

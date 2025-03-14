@@ -80,7 +80,6 @@ public class RegistroVista extends javax.swing.JFrame {
         jLabel1 = new javax.swing.JLabel();
         txt_cedula = new javax.swing.JTextField();
         btn_actualizar = new javax.swing.JButton();
-        btn_lista_Usuarios = new javax.swing.JButton();
         lbl_titulo = new javax.swing.JLabel();
         btn_finalizar_seción = new javax.swing.JButton();
         lbl_contraseñaActual = new javax.swing.JLabel();
@@ -278,7 +277,6 @@ public class RegistroVista extends javax.swing.JFrame {
         jLabel1.setText("Cédula");
 
         txt_cedula.setText("e. g. 0102030405");
-        txt_cedula.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
         txt_cedula.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
                 txt_cedulaFocusGained(evt);
@@ -306,10 +304,6 @@ public class RegistroVista extends javax.swing.JFrame {
                 btn_actualizarActionPerformed(evt);
             }
         });
-
-        btn_lista_Usuarios.setFont(new java.awt.Font("Segoe UI", 1, 18)); // NOI18N
-        btn_lista_Usuarios.setText("VER USUARIOS");
-        btn_lista_Usuarios.setOpaque(true);
 
         lbl_titulo.setFont(new java.awt.Font("Leelawadee UI", 1, 24)); // NOI18N
         lbl_titulo.setForeground(UI.SPACIAL_CADET);
@@ -364,18 +358,14 @@ public class RegistroVista extends javax.swing.JFrame {
                         .addGap(221, 221, 221)
                         .addComponent(lbl_apellidos, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(layout.createSequentialGroup()
-                        .addGap(23, 23, 23)
+                        .addGap(40, 40, 40)
+                        .addComponent(btn_finalizar_seción, javax.swing.GroupLayout.PREFERRED_SIZE, 88, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(93, 93, 93)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(btn_registro_Usuaio, javax.swing.GroupLayout.PREFERRED_SIZE, 260, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGroup(layout.createSequentialGroup()
-                                .addGap(17, 17, 17)
-                                .addComponent(btn_finalizar_seción, javax.swing.GroupLayout.PREFERRED_SIZE, 88, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGap(93, 93, 93)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(txt_cedula, javax.swing.GroupLayout.PREFERRED_SIZE, 418, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(jLabel1)
-                                    .addComponent(lbl_nombres, javax.swing.GroupLayout.PREFERRED_SIZE, 96, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(lbl_titulo)))))
+                            .addComponent(txt_cedula, javax.swing.GroupLayout.PREFERRED_SIZE, 418, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jLabel1)
+                            .addComponent(lbl_nombres, javax.swing.GroupLayout.PREFERRED_SIZE, 96, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(lbl_titulo)))
                     .addGroup(layout.createSequentialGroup()
                         .addGap(219, 219, 219)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
@@ -405,14 +395,16 @@ public class RegistroVista extends javax.swing.JFrame {
                                     .addComponent(jcmbx_roles, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))))
                     .addGroup(layout.createSequentialGroup()
                         .addGap(450, 450, 450)
-                        .addComponent(txt_clave_comprobacion, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addGap(199, 199, Short.MAX_VALUE))
-            .addGroup(layout.createSequentialGroup()
-                .addGap(337, 337, 337)
-                .addComponent(btn_actualizar, javax.swing.GroupLayout.PREFERRED_SIZE, 215, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(btn_lista_Usuarios, javax.swing.GroupLayout.PREFERRED_SIZE, 208, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(36, 36, 36))
+                        .addComponent(txt_clave_comprobacion, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                        .addContainerGap()
+                        .addComponent(btn_registro_Usuaio, javax.swing.GroupLayout.PREFERRED_SIZE, 260, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(231, 231, 231)))
+                .addGap(205, 205, Short.MAX_VALUE))
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                .addGap(0, 0, Short.MAX_VALUE)
+                .addComponent(btn_actualizar, javax.swing.GroupLayout.PREFERRED_SIZE, 264, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(140, 140, 140))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -464,7 +456,6 @@ public class RegistroVista extends javax.swing.JFrame {
                     .addComponent(txt_clave_comprobacion, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(btn_lista_Usuarios, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(btn_actualizar, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(btn_registro_Usuaio, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap())
@@ -975,13 +966,7 @@ public class RegistroVista extends javax.swing.JFrame {
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                Vista.RegistroVista registroVista = new Vista.RegistroVista();
-
-                // Crear instancia del controlador pasando un usuario de ejemplo (o null si es un nuevo registro)
-                RegistroControlador registroControlador = new RegistroControlador("usuarioEjemplo", registroVista);
-
-                // Iniciar la vista
-                registroControlador.iniciarVista();
+                
             }
         });
     }
@@ -989,7 +974,6 @@ public class RegistroVista extends javax.swing.JFrame {
     // Variables declaration - do not modify//GEN-BEGIN:variables
     public javax.swing.JButton btn_actualizar;
     public javax.swing.JButton btn_finalizar_seción;
-    private javax.swing.JButton btn_lista_Usuarios;
     public javax.swing.JButton btn_registro_Usuaio;
     private javax.swing.JLabel jLabel1;
     public javax.swing.JComboBox<String> jcmbx_roles;

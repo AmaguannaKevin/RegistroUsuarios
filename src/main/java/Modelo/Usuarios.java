@@ -3,21 +3,25 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
 package Modelo;
-
-import java.sql.Timestamp;
-import org.mindrot.jbcrypt.BCrypt;
 import Conexion.Config;
-import java.sql.*;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.FindIterable;
+import com.mongodb.client.result.UpdateResult;
+import org.bson.Document;
+import org.bson.types.ObjectId;
+import org.mindrot.jbcrypt.BCrypt;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
-
 /**
  *
  * @author USER
  */
 public class Usuarios {
 
-    private int id;
+    private ObjectId id; 
     private String nombre1;
     private String nombre2;
     private String apellido1;
@@ -26,14 +30,14 @@ public class Usuarios {
     private String usuario;
     private String clave;
     private String cedula;
-    private String fechaRegistro;
-    private int idRol;
+    private String fechaRegistro; 
+    private ObjectId idRol;      
 
     public Usuarios() {
     }
 
-    public Usuarios(int id, String nombre1, String nombre2, String apellido1, String apellido2,
-            String correo, String usuario, String clave, String cedula, String fechaRegistro, int idRol) {
+    public Usuarios(ObjectId id, String nombre1, String nombre2, String apellido1, String apellido2,
+                    String correo, String usuario, String clave, String cedula, String fechaRegistro, ObjectId idRol) {
         this.id = id;
         this.nombre1 = nombre1;
         this.nombre2 = nombre2;
@@ -46,334 +50,284 @@ public class Usuarios {
         this.fechaRegistro = fechaRegistro;
         this.idRol = idRol;
     }
-
+    
     public int agregarUsuario(String nombre1, String nombre2, String apellido1, String apellido2,
-            String cedula, String correo, String usuario, String clave, int idRol) throws SQLException {
-
+                              String cedula, String correo, String usuario, String clave, ObjectId idRol) {
         if (usuarioExiste(usuario, correo, cedula)) {
-            return 2; // El usuario ya existe
+            return 2;
         }
+        MongoDatabase database = Config.conectar();
+        MongoCollection<Document> collection = database.getCollection("usuarios");
 
-        String sql = "INSERT INTO usuarios (nombres, apellidos, correo, nombre_usuario, cedula, contrasena, id_rol) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (Connection c = new Config().conection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        String nombres = nombre1 + " " + nombre2;
+        String apellidos = apellido1 + " " + apellido2;
+        String contrasenaCifrada = cifrarContrasena(clave);
 
-            String nombres = nombre1 + " " + nombre2;
-            String apellidos = apellido1 + " " + apellido2;
-            String contrasenaCifrada = cifrarContrasena(clave);
+        Document userDoc = new Document("nombres", nombres)
+                .append("apellidos", apellidos)
+                .append("correo", correo)
+                .append("nombre_usuario", usuario)
+                .append("cedula", cedula)
+                .append("contrasena", contrasenaCifrada)
+                .append("id_rol", idRol)
+                .append("fecha_registro", new Date())
+                .append("ultimo_acceso", new Date())
+                .append("estado", true);
 
-            ps.setString(1, nombres);
-            ps.setString(2, apellidos);
-            ps.setString(3, correo);
-            ps.setString(4, usuario);
-            ps.setString(5, cedula);
-            ps.setString(6, contrasenaCifrada);
-            ps.setInt(7, idRol);
-
-            int filasAfectadas = ps.executeUpdate();
-            return filasAfectadas > 0 ? 1 : 0;
-        }
+        collection.insertOne(userDoc);
+        return 1;
     }
 
+    // Verifica si existe un usuario con el mismo nombre_usuario, correo o cédula
     private boolean usuarioExiste(String usuario, String correo, String cedula) {
-        String sql = "SELECT id_usuario FROM usuarios WHERE nombre_usuario = ? OR correo = ? OR cedula = ?";
-        try (Connection c = new Config().conection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        MongoDatabase database = Config.conectar();
+        MongoCollection<Document> collection = database.getCollection("usuarios");
 
-            ps.setString(1, usuario);
-            ps.setString(2, correo);
-            ps.setString(3, cedula);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
-            }
-        } catch (SQLException ex) {
-            ex.printStackTrace();
-            // En caso de error, se evita agregar el usuario.
-            return true;
-        }
+        Document query = new Document("$or", Arrays.asList(
+                new Document("nombre_usuario", usuario),
+                new Document("correo", correo),
+                new Document("cedula", cedula)
+        ));
+        Document found = collection.find(query).first();
+        return found != null;
     }
 
+    // Cifra la contraseña usando BCrypt
     private String cifrarContrasena(String clave) {
         return BCrypt.hashpw(clave, BCrypt.gensalt());
     }
 
+    // Valida al usuario comparando la contraseña ingresada con la almacenada en la BD
     public boolean validarUsuario() {
-        String sql = "SELECT id_usuario, nombres, apellidos, correo, cedula, contrasena, id_rol, fecha_registro "
-                + "FROM usuarios WHERE nombre_usuario = ?";
+        MongoDatabase database = Config.conectar();
+        MongoCollection<Document> collection = database.getCollection("usuarios");
 
-        try (Connection c = new Config().conection(); PreparedStatement ps = c.prepareStatement(sql)) {
-
-            ps.setString(1, this.usuario);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    String contrasenaBD = rs.getString("contrasena");
-                    if (BCrypt.checkpw(this.clave, contrasenaBD)) {
-                        this.id = rs.getInt("id_usuario");
-                        this.correo = rs.getString("correo");
-                        this.cedula = rs.getString("cedula");
-                        this.idRol = rs.getInt("id_rol");
-                        this.fechaRegistro = rs.getString("fecha_registro");
-                        return true;
-                    }
-                }
+        Document query = new Document("nombre_usuario", this.usuario);
+        Document found = collection.find(query).first();
+        if (found != null) {
+            String contrasenaBD = found.getString("contrasena");
+            if (BCrypt.checkpw(this.clave, contrasenaBD)) {
+                this.id = found.getObjectId("_id");
+                this.correo = found.getString("correo");
+                this.cedula = found.getString("cedula");
+                this.idRol = found.get("id_rol", ObjectId.class);
+                Date fecha = found.getDate("fecha_registro");
+                this.fechaRegistro = (fecha != null) ? fecha.toString() : "";
+                return true;
             }
-        } catch (SQLException ex) {
-            ex.printStackTrace();
         }
         return false;
     }
 
+    // Retorna el nombre completo concatenando los campos "nombres" y "apellidos"
     public String obtenerNombreCompleto() {
-        String nombreCompleto = "";
-        String sql = "SELECT nombres, apellidos FROM usuarios WHERE nombre_usuario = ?";
-        try (Connection c = new Config().conection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        MongoDatabase database = Config.conectar();
+        MongoCollection<Document> collection = database.getCollection("usuarios");
 
-            ps.setString(1, this.usuario);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    nombreCompleto = rs.getString("nombres") + " " + rs.getString("apellidos");
-                }
-            }
-        } catch (SQLException ex) {
-            ex.printStackTrace();
+        Document query = new Document("nombre_usuario", this.usuario);
+        Document found = collection.find(query).first();
+        if (found != null) {
+            return found.getString("nombres") + " " + found.getString("apellidos");
         }
-        return nombreCompleto;
+        return "";
     }
 
+    // Busca usuarios cuyo nombre de usuario contenga el patrón proporcionado (búsqueda case-insensitive)
     public static List<Usuarios> buscarUsuariosPorUsuario(String nombreUsuario) {
         List<Usuarios> listaUsuarios = new ArrayList<>();
-        String sql = "SELECT id_usuario, nombres, apellidos, correo, nombre_usuario, cedula, fecha_registro, id_rol "
-                + "FROM usuarios WHERE nombre_usuario LIKE ?";
-        try (Connection c = new Config().conection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        MongoDatabase database = Config.conectar();
+        MongoCollection<Document> collection = database.getCollection("usuarios");
 
-            ps.setString(1, "%" + nombreUsuario + "%");
-
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    Usuarios u = new Usuarios();
-                    u.setId(rs.getInt("id_usuario"));
-                    // Separar nombres y apellidos en dos partes
-                    String fullNames = rs.getString("nombres");
-                    String[] nombresArr = fullNames.split(" ", 2);
-                    u.setNombre1(nombresArr[0]);
-                    u.setNombre2(nombresArr.length > 1 ? nombresArr[1] : "");
-                    String fullApellidos = rs.getString("apellidos");
-                    String[] apellidosArr = fullApellidos.split(" ", 2);
-                    u.setApellido1(apellidosArr[0]);
-                    u.setApellido2(apellidosArr.length > 1 ? apellidosArr[1] : "");
-                    u.setCorreo(rs.getString("correo"));
-                    u.setUsuario(rs.getString("nombre_usuario"));
-                    u.setCedula(rs.getString("cedula"));
-                    u.setFechaRegistro(rs.getString("fecha_registro"));
-                    u.setIdRol(rs.getInt("id_rol"));
-                    listaUsuarios.add(u);
-                }
-            }
-        } catch (SQLException ex) {
-            ex.printStackTrace();
+        Document query = new Document("nombre_usuario", new Document("$regex", nombreUsuario).append("$options", "i"));
+        FindIterable<Document> docs = collection.find(query);
+        for (Document doc : docs) {
+            Usuarios u = new Usuarios();
+            u.setId(doc.getObjectId("_id"));
+            String fullNames = doc.getString("nombres");
+            String[] nombresArr = fullNames.split(" ", 2);
+            u.setNombre1(nombresArr[0]);
+            u.setNombre2(nombresArr.length > 1 ? nombresArr[1] : "");
+            String fullApellidos = doc.getString("apellidos");
+            String[] apellidosArr = fullApellidos.split(" ", 2);
+            u.setApellido1(apellidosArr[0]);
+            u.setApellido2(apellidosArr.length > 1 ? apellidosArr[1] : "");
+            u.setCorreo(doc.getString("correo"));
+            u.setUsuario(doc.getString("nombre_usuario"));
+            u.setCedula(doc.getString("cedula"));
+            Date fecha = doc.getDate("fecha_registro");
+            u.setFechaRegistro(fecha != null ? fecha.toString() : "");
+            u.setIdRol(doc.get("id_rol", ObjectId.class));
+            listaUsuarios.add(u);
         }
         return listaUsuarios;
     }
 
+    // Carga los datos completos del usuario basándose en el nombre de usuario
     public void buscarDatosUsuario() {
-        String sql = "SELECT id_usuario, nombres, apellidos, correo, cedula, contrasena, id_rol, fecha_registro "
-                + "FROM usuarios WHERE nombre_usuario = ?";
-        try (Connection c = new Config().conection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        MongoDatabase database = Config.conectar();
+        MongoCollection<Document> collection = database.getCollection("usuarios");
 
-            ps.setString(1, this.usuario);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    this.id = rs.getInt("id_usuario");
-                    String[] nombresArr = rs.getString("nombres").split(" ", 2);
-                    this.nombre1 = nombresArr[0];
-                    this.nombre2 = nombresArr.length > 1 ? nombresArr[1] : "";
-                    String[] apellidosArr = rs.getString("apellidos").split(" ", 2);
-                    this.apellido1 = apellidosArr[0];
-                    this.apellido2 = apellidosArr.length > 1 ? apellidosArr[1] : "";
-                    this.correo = rs.getString("correo");
-                    this.cedula = rs.getString("cedula");
-                    this.clave = rs.getString("contrasena");
-                    this.idRol = rs.getInt("id_rol");
-                    this.fechaRegistro = rs.getString("fecha_registro");
-                }
-            }
-        } catch (SQLException ex) {
-            ex.printStackTrace();
+        Document query = new Document("nombre_usuario", this.usuario);
+        Document doc = collection.find(query).first();
+        if (doc != null) {
+            this.id = doc.getObjectId("_id");
+            String[] nombresArr = doc.getString("nombres").split(" ", 2);
+            this.nombre1 = nombresArr[0];
+            this.nombre2 = (nombresArr.length > 1 ? nombresArr[1] : "");
+            String[] apellidosArr = doc.getString("apellidos").split(" ", 2);
+            this.apellido1 = apellidosArr[0];
+            this.apellido2 = (apellidosArr.length > 1 ? apellidosArr[1] : "");
+            this.correo = doc.getString("correo");
+            this.cedula = doc.getString("cedula");
+            this.clave = doc.getString("contrasena");
+            this.idRol = doc.get("id_rol", ObjectId.class);
+            Date fecha = doc.getDate("fecha_registro");
+            this.fechaRegistro = (fecha != null) ? fecha.toString() : "";
         }
     }
 
-    // Se optimiza la carga de datos por cédula para separar nombres y apellidos correctamente
+    // Obtiene un usuario por su cédula
     public Usuarios obtenerUsuarioPorCedula(String cedula) {
-        String sql = "SELECT id_usuario, nombres, apellidos, correo, nombre_usuario, cedula, contrasena, fecha_registro, id_rol FROM usuarios WHERE cedula = ?";
-        try (Connection c = new Config().conection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, cedula);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    Usuarios u = new Usuarios();
-                    u.setId(rs.getInt("id_usuario"));
+        MongoDatabase database = Config.conectar();
+        MongoCollection<Document> collection = database.getCollection("usuarios");
 
-                    String nombres = rs.getString("nombres");
-                    String[] nombresArr = nombres.split(" ", 2);
-                    u.setNombre1(nombresArr[0]);
-                    u.setNombre2(nombresArr.length > 1 ? nombresArr[1] : "");
+        Document query = new Document("cedula", cedula);
+        Document doc = collection.find(query).first();
+        if (doc != null) {
+            Usuarios u = new Usuarios();
+            u.setId(doc.getObjectId("_id"));
 
-                    String apellidos = rs.getString("apellidos");
-                    String[] apellidosArr = apellidos.split(" ", 2);
-                    u.setApellido1(apellidosArr[0]);
-                    u.setApellido2(apellidosArr.length > 1 ? apellidosArr[1] : "");
+            String nombres = doc.getString("nombres");
+            String[] nombresArr = nombres.split(" ", 2);
+            u.setNombre1(nombresArr[0]);
+            u.setNombre2(nombresArr.length > 1 ? nombresArr[1] : "");
 
-                    u.setCorreo(rs.getString("correo"));
-                    u.setUsuario(rs.getString("nombre_usuario"));
-                    u.setCedula(rs.getString("cedula"));
-                    u.setClave(rs.getString("contrasena"));
-                    u.setFechaRegistro(rs.getString("fecha_registro"));
-                    u.setIdRol(rs.getInt("id_rol"));
-                    return u;
-                }
-            }
-        } catch (SQLException ex) {
-            ex.printStackTrace();
-            System.err.println("Error al obtener usuario por cedula: " + ex.getMessage());
-            return null;
+            String apellidos = doc.getString("apellidos");
+            String[] apellidosArr = apellidos.split(" ", 2);
+            u.setApellido1(apellidosArr[0]);
+            u.setApellido2(apellidosArr.length > 1 ? apellidosArr[1] : "");
+
+            u.setCorreo(doc.getString("correo"));
+            u.setUsuario(doc.getString("nombre_usuario"));
+            u.setCedula(doc.getString("cedula"));
+            u.setClave(doc.getString("contrasena"));
+            Date fecha = doc.getDate("fecha_registro");
+            u.setFechaRegistro(fecha != null ? fecha.toString() : "");
+            u.setIdRol(doc.get("id_rol", ObjectId.class));
+            return u;
         }
         return null;
     }
 
+    // Verifica si existe un usuario con la cédula indicada
     public boolean existeCedula(String cedula) {
-        String sql = "SELECT id_usuario FROM usuarios WHERE cedula = ?";
-        try (Connection c = new Config().conection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, cedula);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
-            }
-        } catch (SQLException ex) {
-            ex.printStackTrace();
-            System.err.println("Error al verificar la existencia de la cedula: " + ex.getMessage());
-            return true;
-        }
+        MongoDatabase database = Config.conectar();
+        MongoCollection<Document> collection = database.getCollection("usuarios");
+
+        Document query = new Document("cedula", cedula);
+        Document doc = collection.find(query).first();
+        return doc != null;
     }
 
-    public int actualizarUltimoAcceso(int idUsuario) {
-        String sql = "UPDATE usuarios SET ultimo_acceso = ? WHERE id_usuario = ?";
-        try (Connection c = new Config().conection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            Timestamp timestamp = new Timestamp(System.currentTimeMillis());
-            ps.setTimestamp(1, timestamp);
-            ps.setInt(2, idUsuario);
+    // Actualiza el campo "ultimo_acceso" para el usuario dado
+    public int actualizarUltimoAcceso(ObjectId idUsuario) {
+        MongoDatabase database = Config.conectar();
+        MongoCollection<Document> collection = database.getCollection("usuarios");
 
-            //Si llegamos a este punto, es que no hubo errores
-            return ps.executeUpdate();
-        } catch (SQLException ex) {
-            System.err.println("Error al actualizar el último acceso: " + ex.getMessage());
-            ex.printStackTrace();
-            return 0;
-        }
+        Document query = new Document("_id", idUsuario);
+        Document update = new Document("$set", new Document("ultimo_acceso", new Date()));
+        UpdateResult result = collection.updateOne(query, update);
+        return (int) result.getModifiedCount();
     }
 
-    // Sobrecarga para el método registrarLogAcceso con un solo parámetro
-    public void registrarLogAcceso(int idUsuario) {
+    public void registrarLogAcceso(ObjectId idUsuario) {
         registrarLogAcceso(idUsuario, "login", "Acceso al sistema");
     }
 
-    public void registrarLogAcceso(int idUsuario, String accion, String detalles) {
-        // Primero verificar si el usuario existe
-        String verificarUsuario = "SELECT id_usuario FROM usuarios WHERE id_usuario = ?";
-        try (Connection c = new Config().conection(); PreparedStatement stmt = c.prepareStatement(verificarUsuario)) {
-            stmt.setInt(1, idUsuario);
-            ResultSet rs = stmt.executeQuery();
-            if (!rs.next()) {
-                System.err.println("Error: El usuario con ID " + idUsuario + " no existe");
-                return;
-            }
+    public void registrarLogAcceso(ObjectId idUsuario, String accion, String detalles) {
+        MongoDatabase database = Config.conectar();
+        MongoCollection<Document> usuariosCollection = database.getCollection("usuarios");
 
-            // Si el usuario existe, continuar con el registro del log
-            String sql = "INSERT INTO log_acceso (id_usuario, accion, detalles) VALUES (?, ?, ?)";
-            try (PreparedStatement ps = c.prepareStatement(sql)) {
-                ps.setInt(1, idUsuario);
-                ps.setString(2, accion);
-                ps.setString(3, detalles);
-                ps.executeUpdate();
-            }
-        } catch (SQLException ex) {
-            System.err.println("Error al registrar log de acceso: " + ex.getMessage());
-            ex.printStackTrace();
+        Document usuarioDoc = usuariosCollection.find(new Document("_id", idUsuario)).first();
+        if (usuarioDoc == null) {
+            System.err.println("Error: El usuario con ID " + idUsuario + " no existe");
+            return;
         }
+
+        MongoCollection<Document> logCollection = database.getCollection("log_acceso");
+        Document logDoc = new Document("id_usuario", idUsuario)
+                .append("fecha_hora", new Date())
+                .append("accion", accion)
+                .append("ip", "") 
+                .append("detalles", detalles);
+        logCollection.insertOne(logDoc);
     }
 
+    // Actualiza la información del usuario
     public int actualizarUsuario(String nuevoNombre1, String nuevoNombre2, String nuevoApellido1, String nuevoApellido2,
-            String nuevoCorreo, String nuevaClave, String nuevaCedula, String nuevoUsuario, int idUsuario, String currentHashedPassword, int idRol) throws SQLException {
-        String sql = "UPDATE usuarios SET nombres = ?, apellidos = ?, correo = ?, contrasena = ?, cedula = ?, nombre_usuario = ?, id_rol = ? "
-                + "WHERE id_usuario = ?";
-        try (Connection c = new Config().conection(); PreparedStatement ps = c.prepareStatement(sql)) {
+                                 String nuevoCorreo, String nuevaClave, String nuevaCedula, String nuevoUsuario,
+                                 ObjectId idUsuario, String currentHashedPassword, ObjectId idRol) {
+        MongoDatabase database = Config.conectar();
+        MongoCollection<Document> collection = database.getCollection("usuarios");
 
-            String nuevosNombres = nuevoNombre1 + " " + nuevoNombre2;
-            String nuevosApellidos = nuevoApellido1 + " " + nuevoApellido2;
-            String contrasenaCifrada;
-            // Si la contraseña nueva es igual a la actual (ya cifrada), no se vuelve a cifrar.
-            if (nuevaClave.equals(currentHashedPassword)) {
-                contrasenaCifrada = currentHashedPassword;
-            } else {
-                contrasenaCifrada = cifrarContrasena(nuevaClave);
-            }
+        String nuevosNombres = nuevoNombre1 + " " + nuevoNombre2;
+        String nuevosApellidos = nuevoApellido1 + " " + nuevoApellido2;
+        String contrasenaCifrada = nuevaClave.equals(currentHashedPassword)
+                ? currentHashedPassword
+                : cifrarContrasena(nuevaClave);
 
-            ps.setString(1, nuevosNombres);
-            ps.setString(2, nuevosApellidos);
-            ps.setString(3, nuevoCorreo);
-            ps.setString(4, contrasenaCifrada);
-            ps.setString(5, nuevaCedula);
-            ps.setString(6, nuevoUsuario);
-            ps.setInt(7, idRol);
-            ps.setInt(8, idUsuario);
-
-            int filasAfectadas = ps.executeUpdate();
-            return filasAfectadas > 0 ? 1 : 0;
-
-        }
+        Document query = new Document("_id", idUsuario);
+        Document update = new Document("$set", new Document("nombres", nuevosNombres)
+                .append("apellidos", nuevosApellidos)
+                .append("correo", nuevoCorreo)
+                .append("contrasena", contrasenaCifrada)
+                .append("cedula", nuevaCedula)
+                .append("nombre_usuario", nuevoUsuario)
+                .append("id_rol", idRol));
+        UpdateResult result = collection.updateOne(query, update);
+        return result.getModifiedCount() > 0 ? 1 : 0;
     }
 
+    // Obtiene un usuario a partir del nombre de usuario
     public Usuarios obtenerUsuarioPorNombre(String nombreUsuario) {
-        String sql = "SELECT id_usuario, nombres, apellidos, correo, nombre_usuario, cedula, contrasena, fecha_registro, id_rol FROM usuarios WHERE nombre_usuario = ?";
-        try (Connection c = new Config().conection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, nombreUsuario);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    Usuarios u = new Usuarios();
-                    u.setId(rs.getInt("id_usuario"));
+        MongoDatabase database = Config.conectar();
+        MongoCollection<Document> collection = database.getCollection("usuarios");
 
-                    String nombres = rs.getString("nombres");
-                    String[] nombresArr = nombres.split(" ", 2);
-                    u.setNombre1(nombresArr[0]);
-                    u.setNombre2(nombresArr.length > 1 ? nombresArr[1] : "");
+        Document query = new Document("nombre_usuario", nombreUsuario);
+        Document doc = collection.find(query).first();
+        if (doc != null) {
+            Usuarios u = new Usuarios();
+            u.setId(doc.getObjectId("_id"));
 
-                    String apellidos = rs.getString("apellidos");
-                    String[] apellidosArr = apellidos.split(" ", 2);
-                    u.setApellido1(apellidosArr[0]);
-                    u.setApellido2(apellidosArr.length > 1 ? apellidosArr[1] : "");
+            String nombres = doc.getString("nombres");
+            String[] nombresArr = nombres.split(" ", 2);
+            u.setNombre1(nombresArr[0]);
+            u.setNombre2(nombresArr.length > 1 ? nombresArr[1] : "");
 
-                    u.setCorreo(rs.getString("correo"));
-                    u.setUsuario(rs.getString("nombre_usuario"));
-                    u.setCedula(rs.getString("cedula"));
-                    u.setClave(rs.getString("contrasena"));
-                    u.setFechaRegistro(rs.getString("fecha_registro"));
-                    u.setIdRol(rs.getInt("id_rol"));
-                    return u;
-                }
-            }
-        } catch (SQLException ex) {
-            ex.printStackTrace();
-            System.err.println("Error al obtener usuario por nombre: " + ex.getMessage());
+            String apellidos = doc.getString("apellidos");
+            String[] apellidosArr = apellidos.split(" ", 2);
+            u.setApellido1(apellidosArr[0]);
+            u.setApellido2(apellidosArr.length > 1 ? apellidosArr[1] : "");
+
+            u.setCorreo(doc.getString("correo"));
+            u.setUsuario(doc.getString("nombre_usuario"));
+            u.setCedula(doc.getString("cedula"));
+            u.setClave(doc.getString("contrasena"));
+            Date fecha = doc.getDate("fecha_registro");
+            u.setFechaRegistro(fecha != null ? fecha.toString() : "");
+            u.setIdRol(doc.get("id_rol", ObjectId.class));
+            return u;
         }
         return null;
     }
 
-    // Getters y setters
-    public int getId() {
+    // Getters y Setters
+
+    public ObjectId getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(ObjectId id) {
         this.id = id;
     }
 
@@ -449,11 +403,11 @@ public class Usuarios {
         this.fechaRegistro = fechaRegistro;
     }
 
-    public int getIdRol() {
+    public ObjectId getIdRol() {
         return idRol;
     }
 
-    public void setIdRol(int idRol) {
+    public void setIdRol(ObjectId idRol) {
         this.idRol = idRol;
     }
 }

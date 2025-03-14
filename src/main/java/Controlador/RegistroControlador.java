@@ -4,6 +4,9 @@
  */
 package Controlador;
 
+import javax.swing.*;
+import org.bson.types.ObjectId;
+import org.mindrot.jbcrypt.BCrypt;
 import Modelo.Rol;
 import Modelo.Usuarios;
 import Vista.LoginVista;
@@ -13,12 +16,9 @@ import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.sql.SQLException;
-import java.util.List;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JOptionPane;
 import javax.swing.JTextField;
-import org.mindrot.jbcrypt.BCrypt;
 
 /**
  *
@@ -28,8 +28,7 @@ public class RegistroControlador {
 
     protected String usuario;
     protected RegistroVista regUsuV;
-
-    private int currentId = 0;
+    private ObjectId currentId = null;
     private String currentNombre1 = "";
     private String currentNombre2 = "";
     private String currentApellido1 = "";
@@ -38,12 +37,11 @@ public class RegistroControlador {
     private String currentUsuario = "";
     private String currentPassword = "";
     private String currentCedula = "";
-    private int currentIdRol = 0;
+    private ObjectId currentIdRol = null;
 
     private final Usuarios modeloUsuarios;
     private final Rol modeloRoles;
 
-    // Textos de ejemplo para cada campo
     private final String ejemploNombre1 = "e. g. Juan";
     private final String ejemploNombre2 = "e. g. Luis";
     private final String ejemploApellido1 = "e. g. Rodriguez";
@@ -52,30 +50,27 @@ public class RegistroControlador {
     private final String ejemploUsuario = "e. g. luis.rodri_12";
     private final String ejemploContraseña = "e. g. Contraseña123";
 
-    public RegistroControlador(String usuario, RegistroVista regUsuV) {
+    private ObjectId currentUserId; // Nuevo campo para el ObjectId del usuario logeado
+
+    public RegistroControlador(String usuario, RegistroVista regUsuV, ObjectId currentUserId) {
         this.usuario = usuario;
         this.regUsuV = regUsuV;
+        this.currentUserId = currentUserId; // Inicializar el ObjectId
         this.modeloUsuarios = new Usuarios();
         this.modeloRoles = new Rol();
 
-        Usuarios user = modeloUsuarios.obtenerUsuarioPorNombre(usuario);
-        if (user != null) {
-            currentId = user.getId();
-            currentNombre1 = user.getNombre1();
-            currentNombre2 = user.getNombre2();
-            currentApellido1 = user.getApellido1();
-            currentApellido2 = user.getApellido2();
-            currentCorreo = user.getCorreo();
-            currentUsuario = user.getUsuario();
-            currentPassword = user.getClave();
-            currentCedula = user.getCedula();
-            currentIdRol = user.getIdRol();
-        }
+        // Inicializar la vista
+        inicializarCampos();
 
-        this.regUsuV.btn_registro_Usuaio.addActionListener(this::btn_registro_UsuarioActionPerformed);
+        // Eventos
+        regUsuV.btn_registro_Usuaio.addActionListener(this::btn_registro_UsuarioActionPerformed);
+        regUsuV.btn_actualizar.addActionListener(this::btn_actualizarActionPerformed);
+        regUsuV.btn_finalizar_seción.addActionListener(this::btn_finalizar_seciónActionPerformed);
+        regUsuV.txt_contraseña_actual.addActionListener(this::txt_contraseña_actualActionPerformed);
+        regUsuV.jcmbx_roles.addActionListener(this::jcmbx_rolesActionPerformed);
 
-        // Ejemplo: para la cédula se mantiene el listener actual
-        this.regUsuV.txt_cedula.addKeyListener(new KeyAdapter() {
+        // Key Listener para la cédula (Enter)
+        regUsuV.txt_cedula.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
@@ -84,30 +79,17 @@ public class RegistroControlador {
             }
         });
 
-        this.regUsuV.txt_cedula.addFocusListener(new FocusAdapter() {
+        // Focus Listener para la cédula (limpiar al ganar foco)
+        regUsuV.txt_cedula.addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent evt) {
-                regUsuV.txt_cedula.setText(""); // Limpiar el campo al obtener el foco
+                regUsuV.txt_cedula.setText("");
                 limpiarCamposEjemplo();
             }
         });
 
-        this.regUsuV.btn_actualizar.addActionListener(this::btn_actualizarActionPerformed);
-
-        this.regUsuV.btn_finalizar_seción.addActionListener(this::btn_finalizar_seciónActionPerformed);
-
-        regUsuV.txt_contraseña_actual.addActionListener(this::txt_contraseña_actualActionPerformed);
-
-        regUsuV.txt_clave1.setEditable(false);
-        regUsuV.txt_clave1.setFocusable(false);
-        regUsuV.txt_clave_comprobacion.setEditable(false);
-        regUsuV.txt_clave_comprobacion.setFocusable(false);
+        //Llenar combo box roles
         llenarComboBoxRoles();
-
-        this.regUsuV.jcmbx_roles.addActionListener(this::jcmbx_rolesActionPerformed);
-
-        // Inicializa los campos al crear el controlador
-        inicializarCampos();
     }
 
     public void iniciarVista() {
@@ -122,13 +104,8 @@ public class RegistroControlador {
         regUsuV.dispose();
     }
 
-    /**
-     * Inicializa los campos y asigna los placeholders correspondientes.
-     */
-    // Métodos de inicialización, limpieza y reinicio de la vista
-
     private void inicializarCampos() {
-        // Deshabilita todos los campos al inicio
+        // Campos siempre deshabilitados al inicio
         regUsuV.txt_nombre1.setEditable(false);
         regUsuV.txt_nombre1.setFocusable(false);
         regUsuV.txt_nombre2.setEditable(false);
@@ -141,16 +118,23 @@ public class RegistroControlador {
         regUsuV.txt_correo.setFocusable(false);
         regUsuV.txt_usuario.setEditable(false);
         regUsuV.txt_usuario.setFocusable(false);
-        regUsuV.txt_cedula.setEditable(true);  // Cédula siempre editable al inicio
-        regUsuV.txt_cedula.setFocusable(true);
         regUsuV.txt_contraseña_actual.setEditable(false);
         regUsuV.txt_contraseña_actual.setFocusable(false);
         regUsuV.txt_clave1.setEditable(false);
         regUsuV.txt_clave1.setFocusable(false);
         regUsuV.txt_clave_comprobacion.setEditable(false);
         regUsuV.txt_clave_comprobacion.setFocusable(false);
+        regUsuV.jcmbx_roles.setEnabled(false);
 
-        // Asigna los placeholders usando el método auxiliar
+        // Campo cédula habilitado al inicio
+        regUsuV.txt_cedula.setEditable(true);
+        regUsuV.txt_cedula.setFocusable(true);
+
+        //Desabilitar botones al inicio
+        regUsuV.btn_actualizar.setEnabled(false);
+        regUsuV.btn_registro_Usuaio.setEnabled(false);
+
+        // Placeholders
         agregarPlaceholder(regUsuV.txt_nombre1, ejemploNombre1);
         agregarPlaceholder(regUsuV.txt_nombre2, ejemploNombre2);
         agregarPlaceholder(regUsuV.txt_apellido1, ejemploApellido1);
@@ -161,16 +145,16 @@ public class RegistroControlador {
         agregarPlaceholder(regUsuV.txt_clave_comprobacion, ejemploContraseña);
     }
 
-    /**
-     * Método auxiliar para asignar un placeholder a un JTextField.
-     */
     private void agregarPlaceholder(JTextField campo, String placeholder) {
         campo.setText(placeholder);
+        campo.setForeground(UIManager.getColor("textInactiveText")); // Color grisáceo
+
         campo.addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent e) {
                 if (campo.getText().equals(placeholder)) {
                     campo.setText("");
+                    campo.setForeground(UIManager.getColor("TextField.foreground")); // Color normal
                 }
             }
 
@@ -178,29 +162,30 @@ public class RegistroControlador {
             public void focusLost(FocusEvent e) {
                 if (campo.getText().trim().isEmpty()) {
                     campo.setText(placeholder);
+                    campo.setForeground(UIManager.getColor("textInactiveText")); // Color grisáceo
                 }
             }
         });
     }
 
-    /**
-     * Restaura el texto de ejemplo en cada campo.
-     */
     private void limpiarCamposEjemplo() {
-        regUsuV.txt_nombre1.setText(ejemploNombre1);
-        regUsuV.txt_nombre2.setText(ejemploNombre2);
-        regUsuV.txt_apellido1.setText(ejemploApellido1);
-        regUsuV.txt_apellido2.setText(ejemploApellido2);
-        regUsuV.txt_correo.setText(ejemploCorreo);
-        regUsuV.txt_usuario.setText(ejemploUsuario);
-        regUsuV.txt_clave1.setText(ejemploContraseña);
-        regUsuV.txt_clave_comprobacion.setText(ejemploContraseña);
+        limpiarPlaceholder(regUsuV.txt_nombre1, ejemploNombre1);
+        limpiarPlaceholder(regUsuV.txt_nombre2, ejemploNombre2);
+        limpiarPlaceholder(regUsuV.txt_apellido1, ejemploApellido1);
+        limpiarPlaceholder(regUsuV.txt_apellido2, ejemploApellido2);
+        limpiarPlaceholder(regUsuV.txt_correo, ejemploCorreo);
+        limpiarPlaceholder(regUsuV.txt_usuario, ejemploUsuario);
+        limpiarPlaceholder(regUsuV.txt_clave1, ejemploContraseña);
+        limpiarPlaceholder(regUsuV.txt_clave_comprobacion, ejemploContraseña);
     }
 
-    /**
-     * Reinicia la vista: limpia los campos, vuelve a asignar los placeholders y
-     * restablece las variables.
-     */
+    private void limpiarPlaceholder(JTextField campo, String placeholder) {
+        if (campo.getText().equals(placeholder)) {
+            campo.setText("");
+            campo.setForeground(UIManager.getColor("TextField.foreground")); // Restablecer color
+        }
+    }
+
     private void resetearVistaInicial() {
         regUsuV.txt_nombre1.setText("");
         regUsuV.txt_nombre2.setText("");
@@ -212,11 +197,8 @@ public class RegistroControlador {
         regUsuV.txt_contraseña_actual.setText("");
         regUsuV.txt_clave1.setText("");
         regUsuV.txt_clave_comprobacion.setText("");
-
-        // Vuelve a asignar los placeholders
         inicializarCampos();
-
-        currentId = 0;
+        currentId = null;
         currentNombre1 = "";
         currentNombre2 = "";
         currentApellido1 = "";
@@ -225,12 +207,10 @@ public class RegistroControlador {
         currentUsuario = "";
         currentPassword = "";
         currentCedula = "";
-        currentIdRol = 0;
-
+        currentIdRol = null;
         llenarComboBoxRoles();
     }
 
-// Métodos para habilitar campos y cargar datos
     private void verificarCedula() {
         String cedula = regUsuV.txt_cedula.getText().trim();
         if (!isValidCedula(cedula)) {
@@ -242,20 +222,35 @@ public class RegistroControlador {
             regUsuV.txt_cedula.requestFocusInWindow();
             return;
         }
+
         if (modeloUsuarios.existeCedula(cedula)) {
-            UI.showConfirmDialog(regUsuV,
-                    JOptionPane.CLOSED_OPTION,
-                    JOptionPane.WARNING_MESSAGE,
+            // Modificar el diálogo para incluir un botón de "Actualizar"
+            int opcion = UI.showOptionDialog(regUsuV,
+                    "La cédula ya se encuentra registrada.\n¿Desea actualizar la información?",
                     "AVISO",
-                    "La cédula ya se encuentra registrada.\nPuede actualizar la información.");
-            cargarDatosUsuario(cedula);
+                    JOptionPane.YES_NO_OPTION, // Usa YES_NO_OPTION para los botones "Sí" y "No"
+                    JOptionPane.WARNING_MESSAGE,
+                    new String[]{"Actualizar", "Cancelar"}, // Etiquetas para los botones
+                    "Cancelar" // Botón predeterminado (el que se selecciona al presionar Enter)
+            );
+
+            if (opcion == JOptionPane.YES_OPTION) {  // Si el usuario elige "Actualizar"
+                habilitarCamposActualizacion(); // Habilitar los campos para la actualización
+                cargarDatosUsuario(cedula); // Cargar los datos del usuario
+                regUsuV.btn_actualizar.setEnabled(true);
+                regUsuV.btn_registro_Usuaio.setEnabled(false);
+            } else {
+                // Si el usuario elige "Cancelar" o cierra el diálogo, no hacer nada
+                regUsuV.txt_cedula.requestFocusInWindow();
+            }
         } else {
             habilitarCamposRegistro(cedula);
+            regUsuV.btn_registro_Usuaio.setEnabled(true);
+            regUsuV.btn_actualizar.setEnabled(false);
         }
     }
 
     private void habilitarCamposRegistro(String cedula) {
-        // Habilita todos los campos para el registro de un nuevo usuario
         regUsuV.txt_nombre1.setEditable(true);
         regUsuV.txt_nombre1.setFocusable(true);
         regUsuV.txt_nombre2.setEditable(true);
@@ -268,76 +263,84 @@ public class RegistroControlador {
         regUsuV.txt_correo.setFocusable(true);
         regUsuV.txt_usuario.setEditable(true);
         regUsuV.txt_usuario.setFocusable(true);
-        regUsuV.txt_cedula.setEditable(true);
-        regUsuV.txt_cedula.setFocusable(true);
+        regUsuV.txt_cedula.setEditable(false);
+        regUsuV.txt_cedula.setFocusable(false);
         regUsuV.txt_contraseña_actual.setEditable(false);
         regUsuV.txt_contraseña_actual.setFocusable(false);
         regUsuV.txt_clave1.setEditable(true);
         regUsuV.txt_clave1.setFocusable(true);
         regUsuV.txt_clave_comprobacion.setEditable(true);
         regUsuV.txt_clave_comprobacion.setFocusable(true);
+        regUsuV.jcmbx_roles.setEnabled(true);
 
         regUsuV.txt_cedula.setText(cedula);
         limpiarCamposEjemplo();
     }
 
+    private void habilitarCamposActualizacion() {
+        // Habilitar solo los campos que se pueden actualizar
+        regUsuV.txt_correo.setEditable(true);
+        regUsuV.txt_correo.setFocusable(true);
+        regUsuV.txt_usuario.setEditable(true);
+        regUsuV.txt_usuario.setFocusable(true);
+        regUsuV.txt_contraseña_actual.setEditable(true); //Para verificar la contraseña actual y poder cambiarla
+        regUsuV.txt_contraseña_actual.setFocusable(true);
+        regUsuV.jcmbx_roles.setEnabled(true); //Habilitar el combobox de roles
+
+        // Asegurarse de que los campos que NO se deben editar estén bloqueados
+        regUsuV.txt_nombre1.setEditable(false);
+        regUsuV.txt_nombre1.setFocusable(false);
+        regUsuV.txt_nombre2.setEditable(false);
+        regUsuV.txt_nombre2.setFocusable(false);
+        regUsuV.txt_apellido1.setEditable(false);
+        regUsuV.txt_apellido1.setFocusable(false);
+        regUsuV.txt_apellido2.setEditable(false);
+        regUsuV.txt_apellido2.setFocusable(false);
+        regUsuV.txt_cedula.setEditable(false);
+        regUsuV.txt_cedula.setFocusable(false);
+    }
+
     private void cargarDatosUsuario(String cedula) {
-        Usuarios user = modeloUsuarios.obtenerUsuarioPorCedula(cedula);
-        if (user != null) {
-            currentId = user.getId();
-            currentNombre1 = user.getNombre1();
-            currentNombre2 = user.getNombre2();
-            currentApellido1 = user.getApellido1();
-            currentApellido2 = user.getApellido2();
-            currentCorreo = user.getCorreo();
-            currentUsuario = user.getUsuario();
-            currentPassword = user.getClave();
-            currentCedula = user.getCedula();
-            currentIdRol = user.getIdRol();
+        try {
+            Usuarios user = modeloUsuarios.obtenerUsuarioPorCedula(cedula);
+            if (user != null) {
+                currentId = user.getId();
+                currentNombre1 = user.getNombre1();
+                currentNombre2 = user.getNombre2();
+                currentApellido1 = user.getApellido1();
+                currentApellido2 = user.getApellido2();
+                currentCorreo = user.getCorreo();
+                currentUsuario = user.getUsuario();
+                currentPassword = user.getClave();
+                currentCedula = user.getCedula();
+                currentIdRol = user.getIdRol();
 
-            regUsuV.txt_nombre1.setText(currentNombre1);
-            regUsuV.txt_nombre2.setText(currentNombre2);
-            regUsuV.txt_apellido1.setText(currentApellido1);
-            regUsuV.txt_apellido2.setText(currentApellido2);
-            regUsuV.txt_correo.setText(currentCorreo);
-            regUsuV.txt_usuario.setText(currentUsuario);
+                regUsuV.txt_nombre1.setText(currentNombre1);
+                regUsuV.txt_nombre2.setText(currentNombre2);
+                regUsuV.txt_apellido1.setText(currentApellido1);
+                regUsuV.txt_apellido2.setText(currentApellido2);
+                regUsuV.txt_correo.setText(currentCorreo);
+                regUsuV.txt_usuario.setText(currentUsuario);
+                seleccionarRolEnComboBox(currentIdRol);
 
-            // Bloquea los campos de nombre y apellido
-            regUsuV.txt_nombre1.setEditable(false);
-            regUsuV.txt_nombre1.setFocusable(false);
-            regUsuV.txt_nombre2.setEditable(false);
-            regUsuV.txt_nombre2.setFocusable(false);
-            regUsuV.txt_apellido1.setEditable(false);
-            regUsuV.txt_apellido1.setFocusable(false);
-            regUsuV.txt_apellido2.setEditable(false);
-            regUsuV.txt_apellido2.setFocusable(false);
-
-            // Habilita la edición de correo, usuario y contraseña
-            regUsuV.txt_correo.setEditable(true);
-            regUsuV.txt_correo.setFocusable(true);
-            regUsuV.txt_usuario.setEditable(true);
-            regUsuV.txt_usuario.setFocusable(true);
-            regUsuV.txt_contraseña_actual.setEditable(true);
-            regUsuV.txt_contraseña_actual.setFocusable(true);
-
-            regUsuV.txt_clave1.setText("");
-            regUsuV.txt_clave_comprobacion.setText("");
-            regUsuV.txt_clave1.setEditable(false);
-            regUsuV.txt_clave1.setFocusable(false);
-            regUsuV.txt_clave_comprobacion.setEditable(false);
-            regUsuV.txt_clave_comprobacion.setFocusable(false);
-
-            seleccionarRolEnComboBox(currentIdRol);
+            } else {
+                UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
+                        "ERROR", "No se encontró el usuario con la cédula proporcionada.");
+            }
+            limpiarCamposEjemplo(); //Asegurar que los placeholders desaparezcan
+        } catch (Exception e) {
+            UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
+                    "ERROR", "Error al cargar datos del usuario: " + e.getMessage());
+            e.printStackTrace(); // Importante para el debugging, imprime el error en la consola
         }
-        limpiarCamposEjemplo();
     }
 
     private void llenarComboBoxRoles() {
         try {
-            List<Rol> roles = modeloRoles.obtenerRolesDesdeBD();
+            java.util.List<Rol> roles = modeloRoles.obtenerRolesDesdeBD();
             DefaultComboBoxModel model = new DefaultComboBoxModel(roles.toArray());
             regUsuV.jcmbx_roles.setModel(model);
-        } catch (SQLException e) {
+        } catch (Exception e) {
             UI.showConfirmDialog(regUsuV,
                     JOptionPane.CLOSED_OPTION,
                     JOptionPane.ERROR_MESSAGE,
@@ -347,20 +350,18 @@ public class RegistroControlador {
         }
     }
 
-    private void seleccionarRolEnComboBox(int idRol) {
+    private void seleccionarRolEnComboBox(ObjectId idRol) {
         DefaultComboBoxModel model = (DefaultComboBoxModel) regUsuV.jcmbx_roles.getModel();
         for (int i = 0; i < model.getSize(); i++) {
             Rol rol = (Rol) model.getElementAt(i);
-            if (rol.getIdRol() == idRol) {
+            if (rol.getIdRol().equals(idRol)) {
                 regUsuV.jcmbx_roles.setSelectedItem(rol);
                 break;
             }
         }
     }
 
-// Métodos de validación
     private boolean validarCamposRegistro() {
-        // Primer nombre
         String nom1 = regUsuV.txt_nombre1.getText().trim();
         if (nom1.isEmpty() || nom1.equals(ejemploNombre1)) {
             UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
@@ -368,7 +369,7 @@ public class RegistroControlador {
             regUsuV.txt_nombre1.requestFocusInWindow();
             return false;
         }
-        // Segundo nombre
+
         String nom2 = regUsuV.txt_nombre2.getText().trim();
         if (nom2.isEmpty() || nom2.equals(ejemploNombre2)) {
             UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
@@ -376,7 +377,7 @@ public class RegistroControlador {
             regUsuV.txt_nombre2.requestFocusInWindow();
             return false;
         }
-        // Primer apellido
+
         String ape1 = regUsuV.txt_apellido1.getText().trim();
         if (ape1.isEmpty() || ape1.equals(ejemploApellido1)) {
             UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
@@ -384,7 +385,7 @@ public class RegistroControlador {
             regUsuV.txt_apellido1.requestFocusInWindow();
             return false;
         }
-        // Segundo apellido
+
         String ape2 = regUsuV.txt_apellido2.getText().trim();
         if (ape2.isEmpty() || ape2.equals(ejemploApellido2)) {
             UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
@@ -392,7 +393,7 @@ public class RegistroControlador {
             regUsuV.txt_apellido2.requestFocusInWindow();
             return false;
         }
-        // Correo
+
         String correo = regUsuV.txt_correo.getText().trim();
         if (correo.isEmpty() || correo.equals(ejemploCorreo)) {
             UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
@@ -406,7 +407,7 @@ public class RegistroControlador {
             regUsuV.txt_correo.requestFocusInWindow();
             return false;
         }
-        // Nombre de usuario
+
         String usu = regUsuV.txt_usuario.getText().trim();
         if (usu.isEmpty() || usu.equals(ejemploUsuario)) {
             UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
@@ -414,7 +415,7 @@ public class RegistroControlador {
             regUsuV.txt_usuario.requestFocusInWindow();
             return false;
         }
-        // Contraseña
+
         String pass = regUsuV.txt_clave1.getText().trim();
         if (pass.isEmpty() || pass.equals(ejemploContraseña)) {
             UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
@@ -426,59 +427,16 @@ public class RegistroControlador {
     }
 
     private boolean validarCamposActualizacion() {
-        // Se espera que los datos cargados desde la BD sean reales; se validan de nuevo
-        String nom1 = regUsuV.txt_nombre1.getText().trim();
-        if (nom1.isEmpty() || nom1.equals(ejemploNombre1)) {
-            UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
-                    "ERROR", "El primer nombre no es válido.");
-            regUsuV.txt_nombre1.requestFocusInWindow();
-            return false;
-        }
-        String nom2 = regUsuV.txt_nombre2.getText().trim();
-        if (nom2.isEmpty() || nom2.equals(ejemploNombre2)) {
-            UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
-                    "ERROR", "El segundo nombre no es válido.");
-            regUsuV.txt_nombre2.requestFocusInWindow();
-            return false;
-        }
-        String ape1 = regUsuV.txt_apellido1.getText().trim();
-        if (ape1.isEmpty() || ape1.equals(ejemploApellido1)) {
-            UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
-                    "ERROR", "El primer apellido no es válido.");
-            regUsuV.txt_apellido1.requestFocusInWindow();
-            return false;
-        }
-        String ape2 = regUsuV.txt_apellido2.getText().trim();
-        if (ape2.isEmpty() || ape2.equals(ejemploApellido2)) {
-            UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
-                    "ERROR", "El segundo apellido no es válido.");
-            regUsuV.txt_apellido2.requestFocusInWindow();
-            return false;
-        }
         String correo = regUsuV.txt_correo.getText().trim();
-        if (correo.isEmpty() || correo.equals(ejemploCorreo)) {
-            UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
-                    "ERROR", "El correo electrónico no es válido.");
-            regUsuV.txt_correo.requestFocusInWindow();
-            return false;
-        }
-        if (!isValidEmail(correo)) {
+        if (!correo.isEmpty() && !correo.equals(ejemploCorreo) && !isValidEmail(correo)) {
             UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
                     "ERROR", "El formato del correo electrónico es incorrecto.");
             regUsuV.txt_correo.requestFocusInWindow();
             return false;
         }
-        String usu = regUsuV.txt_usuario.getText().trim();
-        if (usu.isEmpty() || usu.equals(ejemploUsuario)) {
-            UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
-                    "ERROR", "El nombre de usuario no es válido.");
-            regUsuV.txt_usuario.requestFocusInWindow();
-            return false;
-        }
         return true;
     }
 
-// Eventos de registro, actualización, finalización y cambio de contraseña
     private void btn_registro_UsuarioActionPerformed(ActionEvent evt) {
         String cedula = regUsuV.txt_cedula.getText().trim();
         if (modeloUsuarios.existeCedula(cedula)) {
@@ -511,7 +469,7 @@ public class RegistroControlador {
                     "ERROR", "Debe seleccionar un rol para el usuario.");
             return;
         }
-        int idRol = rolSeleccionado.getIdRol();
+        ObjectId idRol = rolSeleccionado.getIdRol();
         try {
             int resultado = modeloUsuarios.agregarUsuario(nombre1, nombre2, apellido1, apellido2, cedula, correo, usuario, clave, idRol);
             if (resultado == 1) {
@@ -522,7 +480,7 @@ public class RegistroControlador {
                 UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
                         "ERROR", "No se pudo registrar el usuario.");
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
             UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
                     "ERROR", "Error al registrar usuario: " + e.getMessage());
             e.printStackTrace();
@@ -536,40 +494,43 @@ public class RegistroControlador {
                     "ERROR", "No puede cambiar la cédula a través de la función de actualización.");
             return;
         }
+
+        // Obtener los valores de los campos
+        String correo = regUsuV.txt_correo.getText().trim();
+        String usuarioNuevo = regUsuV.txt_usuario.getText().trim();
+
+        // Si el correo o el usuario están vacíos o son iguales al placeholder, usar los valores actuales
+        if (correo.isEmpty() || correo.equals(ejemploCorreo)) {
+            correo = currentCorreo; // Mantener el correo actual
+        }
+
+        if (usuarioNuevo.isEmpty() || usuarioNuevo.equals(ejemploUsuario)) {
+            usuarioNuevo = currentUsuario; // Mantener el usuario actual
+        }
+
+        // Validar los campos antes de la actualización
+        if (correo.equals(currentCorreo) && usuarioNuevo.equals(currentUsuario)) {
+            UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.INFORMATION_MESSAGE,
+                    "AVISO", "No se han realizado cambios en la información del usuario.");
+            return; // No hacer nada si no hay cambios
+        }
+
         if (!validarCamposActualizacion()) {
             return;
         }
-        String nombre1 = regUsuV.txt_nombre1.getText().trim().isEmpty() || regUsuV.txt_nombre1.getText().equals(ejemploNombre1)
-                ? currentNombre1 : regUsuV.txt_nombre1.getText().trim();
-        String nombre2 = regUsuV.txt_nombre2.getText().trim().isEmpty() || regUsuV.txt_nombre2.getText().equals(ejemploNombre2)
-                ? currentNombre2 : regUsuV.txt_nombre2.getText().trim();
-        String apellido1 = regUsuV.txt_apellido1.getText().trim().isEmpty() || regUsuV.txt_apellido1.getText().equals(ejemploApellido1)
-                ? currentApellido1 : regUsuV.txt_apellido1.getText().trim();
-        String apellido2 = regUsuV.txt_apellido2.getText().trim().isEmpty() || regUsuV.txt_apellido2.getText().equals(ejemploApellido2)
-                ? currentApellido2 : regUsuV.txt_apellido2.getText().trim();
-        String correo = regUsuV.txt_correo.getText().trim().isEmpty() || regUsuV.txt_correo.getText().equals(ejemploCorreo)
-                ? currentCorreo : regUsuV.txt_correo.getText().trim();
-        String cedula = regUsuV.txt_cedula.getText().trim().isEmpty() ? currentCedula : regUsuV.txt_cedula.getText().trim();
-        String usuarioNuevo = regUsuV.txt_usuario.getText().trim().isEmpty() || regUsuV.txt_usuario.getText().equals(ejemploUsuario)
-                ? currentUsuario : regUsuV.txt_usuario.getText().trim();
-        String nuevaClave = regUsuV.txt_clave1.getText().trim();
-        if (nuevaClave.isEmpty()) {
-            nuevaClave = currentPassword;
-        } else if (!nuevaClave.equals(regUsuV.txt_clave_comprobacion.getText().trim())) {
-            UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
-                    "ERROR", "Las contraseñas no coinciden.");
-            regUsuV.txt_clave1.requestFocusInWindow();
-            return;
-        }
+
         Rol rolSeleccionado = (Rol) regUsuV.jcmbx_roles.getSelectedItem();
+        ObjectId idRol;
         if (rolSeleccionado == null) {
-            UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
-                    "ERROR", "Debe seleccionar un rol para el usuario.");
-            return;
+            // Si no se selecciona un rol, usar el rol actual
+            idRol = currentIdRol;
+        } else {
+            // Si se selecciona un rol, usar el nuevo rol
+            idRol = rolSeleccionado.getIdRol();
         }
-        int idRol = rolSeleccionado.getIdRol();
+
         try {
-            int resultado = modeloUsuarios.actualizarUsuario(nombre1, nombre2, apellido1, apellido2, correo, nuevaClave, cedula, usuarioNuevo, currentId, currentPassword, idRol);
+            int resultado = modeloUsuarios.actualizarUsuario(currentNombre1, currentNombre2, currentApellido1, currentApellido2, correo, currentPassword, currentCedula, usuarioNuevo, currentId, currentPassword, idRol);
             if (resultado == 1) {
                 UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.INFORMATION_MESSAGE,
                         "ÉXITO", "El usuario se ha actualizado correctamente.");
@@ -578,26 +539,22 @@ public class RegistroControlador {
                 UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
                         "ERROR", "No se pudo actualizar el usuario.");
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
             UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
                     "ERROR", "Error al actualizar el usuario: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    private void btn_finalizar_seciónActionPerformed(java.awt.event.ActionEvent evt) {
-        if (currentId == 0) {
-            Usuarios user = modeloUsuarios.obtenerUsuarioPorNombre(this.usuario);
-            if (user != null) {
-                currentId = user.getId();
-            } else {
-                UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
-                        "ERROR", "Error: usuario no encontrado. Verifica que el nombre de usuario (" + usuario + ") sea correcto.");
-                return;
-            }
+    private void btn_finalizar_seciónActionPerformed(ActionEvent evt) {
+        if (currentUserId == null) {
+            UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
+                "ERROR", "Error: No se pudo obtener el ID del usuario para cerrar sesión.");
+            return;
         }
+
         try {
-            int resultado = modeloUsuarios.actualizarUltimoAcceso(currentId);
+            int resultado = modeloUsuarios.actualizarUltimoAcceso(currentUserId); // Usar currentUserId
             if (resultado == 0) {
                 UI.showConfirmDialog(regUsuV, JOptionPane.CLOSED_OPTION, JOptionPane.ERROR_MESSAGE,
                         "ERROR", "Error al actualizar el último acceso.");
@@ -677,6 +634,18 @@ public class RegistroControlador {
         Rol rolSeleccionado = (Rol) regUsuV.jcmbx_roles.getSelectedItem();
         if (rolSeleccionado != null) {
             currentIdRol = rolSeleccionado.getIdRol();
+        }
+    }
+
+    public static class UI {
+
+        public static int showConfirmDialog(RegistroVista regUsuV, int closedOption, int errorMessage, String error, String s) {
+            JOptionPane.showMessageDialog(regUsuV, s, error, errorMessage);
+            return closedOption;
+        }
+
+        public static int showOptionDialog(RegistroVista regUsuV, String s, String aviso, int yesNoOption, int warningMessage, String[] actualizar, String cancelar) {
+            return JOptionPane.showOptionDialog(regUsuV, s, aviso, yesNoOption, warningMessage, null, actualizar, cancelar);
         }
     }
 }

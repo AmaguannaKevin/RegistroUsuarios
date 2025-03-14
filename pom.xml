@@ -14,16 +14,28 @@
     </properties>
     
     <dependencies>
+        <!-- MySQL Connector -->
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
             <version>8.0.33</version>
         </dependency>
+        
+        <!-- MongoDB Driver -->
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongo-java-driver</artifactId>
+            <version>3.12.10</version>
+        </dependency>
+        
+        <!-- Encriptación -->
         <dependency>
             <groupId>com.dannyc</groupId>
             <artifactId>EncryptString</artifactId>
             <version>1.0</version>
         </dependency>
+        
+        <!-- FlatLaf para UI -->
         <dependency>
             <groupId>com.formdev</groupId>
             <artifactId>flatlaf</artifactId>
@@ -34,25 +46,57 @@
             <artifactId>flatlaf-extras</artifactId>
             <version>3.5.4</version>
         </dependency>
+        
+        <!-- Absolute Layout -->
         <dependency>
             <groupId>org.netbeans.external</groupId>
             <artifactId>AbsoluteLayout</artifactId>
             <version>RELEASE210</version>
         </dependency>
+        
+        <!-- Manipulación de imágenes -->
         <dependency>
             <groupId>org.imgscalr</groupId>
             <artifactId>imgscalr-lib</artifactId>
             <version>4.2</version>
         </dependency>
+        
+        <!-- Bcrypt para seguridad -->
         <dependency>
             <groupId>org.mindrot</groupId>
             <artifactId>jbcrypt</artifactId>
             <version>0.4</version>
         </dependency>
+        
+        <!-- Modelo de Maven -->
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-model</artifactId>
             <version>3.0</version>
         </dependency>
+        
+        <!-- Mongoose para carga de pruebas -->
+        <dependency>
+            <groupId>com.github.emc-mongoose</groupId>
+            <artifactId>mongoose-load-controller</artifactId>
+            <version>3.5.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.emc-mongoose</groupId>
+            <artifactId>mongoose-storage-driver</artifactId>
+            <version>3.5.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongodb-driver</artifactId>
+            <version>3.12.14</version>
+            <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>com.lmax</groupId>
+            <artifactId>disruptor</artifactId>
+            <version>3.4.4</version>
+        </dependency>
     </dependencies>
 </project>
+
